@@ -1,0 +1,7 @@
+#ifndef CONFIG_H
+#define CONFIG_H
+
+const char* ssid = "COLOQUE_O_NOME_DA_SUA_REDE_WIFI_AQUI";
+const char* password = "COLOQUE_A_SENHA_DA_SUA_REDE_AQUI";
+
+#endif
