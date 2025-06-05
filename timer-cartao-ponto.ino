@@ -8,20 +8,20 @@
 #include <WiFiUdp.h>
 #include <U8g2lib.h>  // Biblioteca U8g2 para o OLED
 #include <Wire.h>     // Necessário para I2C do OLED
-#include "config.h" 
+#include "config.h"
 
 // --- Configurações do NTP (Servidor de Tempo) ---
 WiFiUDP ntpUDP;
 NTPClient timeClient(ntpUDP, "pool.ntp.org");
-const long gmtOffset_sec = -10800; // GMT-3 (offset em segundos para o Brasil)
+const long gmtOffset_sec = -10800;  // GMT-3 (offset em segundos para o Brasil)
 
 // --- Configurações de Pinos e Pulso ---
-const int onboardLedPin = 25; // LED integrado do Heltec LoRa 32 (geralmente GPIO 25)
-const int buzzerPin = 12;     // Pino GPIO onde o aviso sonoro (sirene) está conectado
+const int onboardLedPin = 25;  // LED integrado do Heltec LoRa 32 (geralmente GPIO 25)
+const int buzzerPin = 12;      // Pino GPIO onde o aviso sonoro (sirene) está conectado
 
-const int pulsoAgendadoDuracao = 3000;          // Duração do pulso agendado em milissegundos para o buzzer (alarme)
-const int pulsoWifiConectadoDuracao = 2000;     // Duração do pulso para o LED ao conectar no Wi-Fi
-const int pulsoWifiErroCurtoDuracao = 300;      // Duração de cada pulso curto para o LED em caso de erro no Wi-Fi
+const int pulsoAgendadoDuracao = 3000;       // Duração do pulso agendado em milissegundos para o buzzer (alarme)
+const int pulsoWifiConectadoDuracao = 2000;  // Duração do pulso para o LED ao conectar no Wi-Fi
+const int pulsoWifiErroCurtoDuracao = 300;   // Duração de cada pulso curto para o LED em caso de erro no Wi-Fi
 
 // --- Horários de Acionamento (HH:MM) ---
 struct HorarioAcionamento {
@@ -39,7 +39,7 @@ HorarioAcionamento horarios[] = {
 const int numHorarios = sizeof(horarios) / sizeof(horarios[0]);
 
 unsigned long ultimoTempoVerificado = 0;
-const unsigned long intervaloVerificacao = 1000; // Verifica a cada 1 segundo
+const unsigned long intervaloVerificacao = 1000;  // Verifica a cada 1 segundo
 
 // --- Configurações do OLED com U8g2 ---
 #define OLED_SDA 4
@@ -56,7 +56,7 @@ void piscarPino(int pin, int duracaoHIGH, int duracaoLOW, int numPulsos) {
     digitalWrite(pin, HIGH);
     delay(duracaoHIGH);
     digitalWrite(pin, LOW);
-    if (i < numPulsos - 1) { // Só espera entre os pulsos
+    if (i < numPulsos - 1) {  // Só espera entre os pulsos
       delay(duracaoLOW);
     }
   }
@@ -72,12 +72,11 @@ void tela(String mensagem) {
   u8g2.sendBuffer();
 }
 
-// Função para exibir mensagens no OLED (duas linhas)
 void telaDuasLinhas(String linha1, String linha2) {
   Serial.println("tela: " + linha1 + " / " + linha2);
   u8g2.clearBuffer();
-  u8g2.drawStr(0, 16, linha1.c_str()); // Primeira linha (y=16)
-  u8g2.drawStr(0, 32, linha2.c_str()); // Segunda linha (y=32)
+  u8g2.drawStr(0, 16, linha1.c_str());  // Primeira linha (y=16)
+  u8g2.drawStr(0, 32, linha2.c_str());  // Segunda linha (y=32)
   u8g2.sendBuffer();
 }
 
@@ -114,109 +113,70 @@ String getProximoHorario(int currentHour, int currentMinute) {
   }
 }
 
-// Função para tentar conectar ao Wi-Fi
 bool conectarWiFi() {
-  Serial.print("Tentando conectar a: ");
-  Serial.println(ssid);
-  tela("Conectando a " + String(ssid));
   WiFi.begin(ssid, password);
+
   int tentativasWifi = 0;
   while (WiFi.status() != WL_CONNECTED) {
-    // Pisca o LED integrado brevemente durante as tentativas
     digitalWrite(onboardLedPin, HIGH);
     delay(100);
     digitalWrite(onboardLedPin, LOW);
-    delay(400); // 500ms total por "pisca"
+    delay(400);
     Serial.print(".");
-    u8g2.drawStr(0, 48, "."); // Show connection attempt on third line
-    u8g2.sendBuffer();
+
     tentativasWifi++;
-    if (tentativasWifi > 40) { // Tenta por aproximadamente 20 segundos
-      Serial.println("\nFalha ao conectar ao WiFi. Verifique as credenciais e a rede.");
-      tela("Erro no Wi-Fi!");
-      // 3 pulsos curtos para erro de conexão
-      piscarPino(onboardLedPin, pulsoWifiErroCurtoDuracao, pulsoWifiErroCurtoDuracao, 3);
+    if (tentativasWifi > 40) {
       return false;
     }
   }
-  return true; // Conectado com sucesso
+  return true;
 }
-
 
 void setup() {
   Serial.begin(9600);
-  pinMode(onboardLedPin, OUTPUT);   // Configura o LED integrado
+  delay(100);  // Adicionar um pequeno delay inicial pode ajudar na estabilização
+
+  pinMode(onboardLedPin, OUTPUT);    // Configura o LED integrado
   digitalWrite(onboardLedPin, LOW);  // Garante que o LED comece desligado
 
-  pinMode(buzzerPin, OUTPUT);   // Configura o pino do aviso sonoro (sirene)
+  pinMode(buzzerPin, OUTPUT);    // Configura o pino do aviso sonoro (sirene)
   digitalWrite(buzzerPin, LOW);  // Garante que o buzzer comece desligado
 
   // Inicializa a comunicação I2C para o OLED
   Wire.begin(OLED_SDA, OLED_SCL);
   u8g2.begin();
-  u8g2.setFont(u8g2_font_ncenB08_tr); // Define a fonte
+  u8g2.setFont(u8g2_font_ncenB08_tr);  // Define a fonte
 
-  tela("SEGURSAT TECH"); // Display initial message
-  Serial.println("\nIniciando configuracao...");
-  delay(1000); // Dar tempo para a mensagem inicial
-  tela("Iniciando...");
-
-  // --- SCAN DE REDES WIFI (mantido para debug inicial, pode ser removido após o desenvolvimento) ---
-  /*  
-  Serial.println("Procurando redes WiFi disponiveis...");
-  tela("Buscando Wi-Fi...");
-  int n = WiFi.scanNetworks();
-  Serial.println("Scan concluido.");
-  tela("Scan concluido.");
+  tela("SEGURSAT TECH");
   delay(1000);
-  if (n == 0) {
-    Serial.println("Nenhuma rede WiFi encontrada!");
-    tela("Sem Wi-Fi.");
-  } else {
-    Serial.print(n);
-    Serial.println(" redes WiFi encontradas:");
-    telaDuasLinhas(String(n) + " redes encontradas", "Scan Concluido");
-    delay(1000);
-    for (int i = 0; i < n; ++i) {
-      Serial.print(i + 1);
-      Serial.print(": ");
-      Serial.print(WiFi.SSID(i));
-      Serial.print(" (");
-      Serial.print(WiFi.RSSI(i));
-      Serial.print("dBm)");
-      Serial.print(" Tipo de Criptografia: ");
-      printEncryptionType(WiFi.encryptionType(i));
-      Serial.println();
-    }
-  }
-  Serial.println("");
-*/
-  // Tenta conectar ao Wi-Fi usando a nova função
+
+  telaDuasLinhas("Conectando a", String(ssid));
+
   if (conectarWiFi()) {
+    // Sucesso na conexão
     Serial.println("\nWiFi conectado!");
     Serial.print("Endereço IP: ");
     Serial.println(WiFi.localIP());
-    
     Serial.print("Endereço MAC: ");
     Serial.println(WiFi.macAddress());
 
     telaDuasLinhas("WiFi Conectado!", "IP: " + WiFi.localIP().toString());
     delay(2000);
 
-    Serial.println("Acendendo LED integrado de confirmação WiFi (pulso longo)...");
-    digitalWrite(onboardLedPin, HIGH); // Liga o LED integrado
-    delay(pulsoWifiConectadoDuracao);   // Mantém ligado pela duração definida
-    digitalWrite(onboardLedPin, LOW);  // Desliga o LED integrado
-    Serial.println("LED de confirmação WiFi concluído.");
+    // Pulso de LED para confirmar
+    digitalWrite(onboardLedPin, HIGH);
+    delay(pulsoWifiConectadoDuracao);
+    digitalWrite(onboardLedPin, LOW);
 
     timeClient.begin();
     timeClient.setTimeOffset(gmtOffset_sec);
     tela("NTP Iniciado");
     delay(1000);
   } else {
-    Serial.println("\nNao foi possivel conectar ao WiFi. Os horarios agendados nao funcionarao sem NTP.");
-    telaDuasLinhas("WiFi OFF", "NTP OFF");
-    // O pulso de erro já foi dado dentro de conectarWiFi()
+    // Falha na conexão
+    Serial.println("\nFalha ao conectar ao WiFi.");
+    tela("Erro no Wi-Fi!");
+    piscarPino(onboardLedPin, pulsoWifiErroCurtoDuracao, pulsoWifiErroCurtoDuracao, 3);
   }
 }
 
@@ -229,11 +189,11 @@ void loop() {
       int horaAtual = timeClient.getHours();
       int minutoAtual = timeClient.getMinutes();
       int segundoAtual = timeClient.getSeconds();
-      int diaDaSemana = timeClient.getDay(); // Obtém o dia da semana (0=Dom, 1=Seg, ..., 6=Sab)
+      int diaDaSemana = timeClient.getDay();  // Obtém o dia da semana (0=Dom, 1=Seg, ..., 6=Sab)
 
       // Display current time and next scheduled time on OLED
       String horaStr = String(horaAtual < 10 ? "0" : "") + String(horaAtual) + ":" + String(minutoAtual < 10 ? "0" : "") + String(minutoAtual) + ":" + String(segundoAtual < 10 ? "0" : "") + String(segundoAtual);
-      String proximoHorarioStr = getProximoHorario(horaAtual, minutoAtual); // Esta função ainda não considera o dia da semana para "próximo"
+      String proximoHorarioStr = getProximoHorario(horaAtual, minutoAtual);  // Esta função ainda não considera o dia da semana para "próximo"
 
       u8g2.clearBuffer();
       u8g2.drawStr(0, 16, ("Hora: " + horaStr).c_str());
@@ -251,12 +211,12 @@ void loop() {
         case 6: diaStr = "Sab"; break;
         default: diaStr = "???"; break;
       }
-      u8g2.drawStr(0, 48, ("Dia: " + diaStr).c_str()); // Exibe o dia da semana na terceira linha
+      u8g2.drawStr(0, 48, ("Dia: " + diaStr).c_str());  // Exibe o dia da semana na terceira linha
       u8g2.sendBuffer();
 
 
       // Reset de acionamento no início do dia
-      if (horaAtual == 0 && minutoAtual == 0 && segundoAtual < 5) { // Reset within the first 5 seconds of midnight
+      if (horaAtual == 0 && minutoAtual == 0 && segundoAtual < 5) {  // Reset within the first 5 seconds of midnight
         for (int i = 0; i < numHorarios; i++) {
           if (horarios[i].acionadoHoje) {
             Serial.print("Resetando flag para horario: ");
@@ -266,7 +226,7 @@ void loop() {
             Serial.println(" (acionadoHoje)");
             tela("Reset Horarios");
             delay(500);
-            horarios[i].acionadoHoje = false; // Resetar a flag
+            horarios[i].acionadoHoje = false;  // Resetar a flag
           }
         }
       }
@@ -287,12 +247,12 @@ void loop() {
             digitalWrite(buzzerPin, HIGH);
             delay(pulsoAgendadoDuracao);
             digitalWrite(buzzerPin, LOW);
-            
+
             horarios[i].acionadoHoje = true;
             Serial.println("Pulso agendado concluido.");
             tela("Pulso Concluido!");
-            delay(1000); // Mantém a mensagem no OLED por um tempo
-            break; // Sai do loop após acionar um alarme
+            delay(1000);  // Mantém a mensagem no OLED por um tempo
+            break;        // Sai do loop após acionar um alarme
           }
         }
       } else {
@@ -305,7 +265,7 @@ void loop() {
     tela("WiFi Desconectado!");
     Serial.println("WiFi desconectado. Tentando reconectar...");
     // Reutiliza a função de conexão
-    if (conectarWiFi()) { // Esta função já lida com o LED e a tela
+    if (conectarWiFi()) {  // Esta função já lida com o LED e a tela
       tela("WiFi Reconectado!");
       Serial.println("\nWiFi reconectado!");
       Serial.print("Endereço IP: ");
@@ -314,13 +274,13 @@ void loop() {
       Serial.print("Endereço MAC: ");
       Serial.println(WiFi.macAddress());
 
-      timeClient.begin(); // Re-initialize NTP client
+      timeClient.begin();  // Re-initialize NTP client
       timeClient.setTimeOffset(gmtOffset_sec);
       delay(1000);
     } else {
       tela("Falha Reconectar");
       // O pulso de erro (3 curtos) já foi dado dentro de conectarWiFi()
-      delay(5000); // Long delay if reconnection fails
+      delay(5000);  // Long delay if reconnection fails
     }
   }
 }
