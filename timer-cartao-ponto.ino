@@ -125,7 +125,7 @@ bool conectarWiFi() {
     Serial.print(".");
 
     tentativasWifi++;
-    if (tentativasWifi > 40) {
+    if (tentativasWifi > 20) {
       return false;
     }
   }
