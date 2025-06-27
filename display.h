@@ -1,0 +1,10 @@
+#ifndef DISPLAY_H
+#define DISPLAY_H
+
+#define OLED_SDA 4
+#define OLED_SCL 15
+#define OLED_RST 16
+
+U8G2_SSD1306_128X64_NONAME_F_SW_I2C u8g2(U8G2_R0, OLED_SCL, OLED_SDA, OLED_RST);
+
+#endif
