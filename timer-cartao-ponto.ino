@@ -20,7 +20,7 @@ const long gmtOffset_sec = -10800;  // GMT-3 (offset em segundos para o Brasil)
 const int onboardLedPin = 25;  // LED integrado do Heltec LoRa 32 (geralmente GPIO 25)
 const int buzzerPin = 12;      // Pino GPIO onde o aviso sonoro (sirene) está conectado
 
-const int pulsoAgendadoDuracao = 3000;       // Duração do pulso agendado em milissegundos para o buzzer (alarme)
+const int pulsoAgendadoDuracao = 8000;       // Duração do pulso agendado em milissegundos para o buzzer (alarme)
 const int pulsoWifiConectadoDuracao = 1000;  // Duração do pulso para o LED ao conectar no Wi-Fi
 const int pulsoWifiErroCurtoDuracao = 150;   // Duração de cada pulso curto para o LED em caso de erro no Wi-Fi
 
